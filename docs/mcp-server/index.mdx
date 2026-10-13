@@ -57,6 +57,12 @@ The MCP server provides the following tools for AI assistants:
   <Card title="Menstrual Cycles" icon="calendar-days">
     Get menstrual cycle records including cycle day, phase, and period length.
   </Card>
+  <Card title="User Connections" icon="link">
+    List connected wearable providers (Garmin, Polar, Whoop, etc.) and their status.
+  </Card>
+  <Card title="Provider Sync" icon="arrows-rotate">
+    Trigger on-demand or historical data synchronization from a connected provider.
+  </Card>
 </CardGroup>
 
 ## Example Interactions
@@ -125,6 +131,25 @@ OPEN_WEARABLES_API_KEY=ow_your_api_key_here
 ```bash
 uv run start
 ```
+
+### 4. Running as a Streamable HTTP Server
+
+To expose the MCP server over HTTP for remote agents (e.g. Bot Forge):
+
+```bash
+# In config/.env
+MCP_TRANSPORT=streamable-http
+MCP_HOST=0.0.0.0
+MCP_PORT=8001
+MCP_PATH=/mcp
+```
+
+Start the server:
+```bash
+uv run start
+```
+
+Your MCP client can connect to `http://<host>:8001/mcp` using the `streamable_http` transport.
 
 If the server starts successfully, you should see output similar to:
 

@@ -10,6 +10,7 @@ from app.prompts import prompts_router
 from app.tools.activity import activity_router
 from app.tools.menstrual_cycles import menstrual_cycles_router
 from app.tools.sleep import sleep_router
+from app.tools.sync import sync_router
 from app.tools.timeseries import timeseries_router
 from app.tools.users import users_router
 from app.tools.workouts import workouts_router
@@ -34,6 +35,9 @@ mcp = FastMCP(
 
     Available tools:
     - get_users: Discover users accessible via your API key
+    - list_user_connections: List all connected wearable providers (Garmin, Polar, Whoop, etc.) for a user
+    - sync_provider_data: Trigger on-demand sync from a connected provider for a user
+    - sync_historical_data: Trigger historical data backfill from a connected provider
     - get_activity_summary: Get daily activity data (steps, calories, heart rate, intensity minutes)
     - get_sleep_summary: Get sleep data for a user over a specified time period
     - get_workout_events: Get workout/exercise data for a user over a specified time period
@@ -116,6 +120,7 @@ mcp = FastMCP(
 
 # Mount tool routers
 mcp.mount(users_router)
+mcp.mount(sync_router)
 mcp.mount(activity_router)
 mcp.mount(sleep_router)
 mcp.mount(workouts_router)
@@ -130,7 +135,22 @@ logger.info(f"Open Wearables MCP server initialized. API URL: {settings.open_wea
 
 def main() -> None:
     """Entry point for the MCP server."""
-    mcp.run()
+    transport = settings.mcp_transport.strip().lower()
+    if transport in {"streamable-http", "streamable_http", "http", "sse"}:
+        norm_transport = "streamable-http" if transport in {"streamable-http", "streamable_http"} else transport
+        logger.info(
+            f"Starting Open Wearables MCP server on {settings.mcp_host}:{settings.mcp_port}{settings.mcp_path} "
+            f"using transport '{norm_transport}'"
+        )
+        mcp.run(
+            transport=norm_transport,
+            host=settings.mcp_host,
+            port=settings.mcp_port,
+            path=settings.mcp_path,
+        )
+    else:
+        logger.info("Starting Open Wearables MCP server using stdio transport")
+        mcp.run(transport="stdio")
 
 
 if __name__ == "__main__":

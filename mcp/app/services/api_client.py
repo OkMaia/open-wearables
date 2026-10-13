@@ -234,6 +234,85 @@ class OpenWearablesClient:
             params["cursor"] = cursor
         return await self._request("GET", f"/api/v1/users/{user_id}/events/menstrual-cycles", params=params)
 
+    async def get_user_connections(self, user_id: str) -> list[dict[str, Any]]:
+        """
+        Get all provider connections for a user.
+
+        Args:
+            user_id: UUID of the user
+
+        Returns:
+            List of connection objects with status and provider capability metadata
+        """
+        response = await self._request("GET", f"/api/v1/users/{user_id}/connections")
+        if isinstance(response, list):
+            return response
+        if isinstance(response, dict) and "data" in response:
+            return response["data"]
+        return []
+
+    async def sync_provider_data(
+        self,
+        user_id: str,
+        provider: str,
+        data_type: str = "all",
+        run_async: bool = True,
+        summary_start_time: str | None = None,
+        summary_end_time: str | None = None,
+    ) -> dict[str, Any]:
+        """
+        Trigger a data synchronization for a user from a connected provider.
+
+        Args:
+            user_id: UUID of the user
+            provider: Provider name (e.g., "garmin", "polar", "suunto", "whoop", "oura")
+            data_type: "workouts", "247", or "all"
+            run_async: Run sync asynchronously via Celery (default: True)
+            summary_start_time: Optional activity start time (Unix timestamp or ISO 8601 date, Garmin only)
+            summary_end_time: Optional activity end time (Unix timestamp or ISO 8601 date, Garmin only)
+
+        Returns:
+            Sync response containing task status or result
+        """
+        params: dict[str, Any] = {
+            "data_type": data_type,
+            "async": run_async,
+        }
+        if summary_start_time:
+            params["summary_start_time"] = summary_start_time
+        if summary_end_time:
+            params["summary_end_time"] = summary_end_time
+
+        return await self._request(
+            "POST",
+            f"/api/v1/providers/{provider}/users/{user_id}/sync",
+            params=params,
+        )
+
+    async def sync_historical_data(
+        self,
+        user_id: str,
+        provider: str,
+        days: int = 90,
+    ) -> dict[str, Any]:
+        """
+        Trigger a historical data sync for a user from a connected provider.
+
+        Args:
+            user_id: UUID of the user
+            provider: Provider name (e.g., "garmin", "whoop", "oura")
+            days: Days of historical data to fetch (1-365)
+
+        Returns:
+            Sync result details
+        """
+        params = {"days": days}
+        return await self._request(
+            "POST",
+            f"/api/v1/providers/{provider}/users/{user_id}/sync/historical",
+            params=params,
+        )
+
 
 # Singleton instance
 client = OpenWearablesClient()

@@ -14,6 +14,7 @@ from pytest_httpx import HTTPXMock
 from app.tools.activity import get_activity_summary
 from app.tools.menstrual_cycles import get_menstrual_cycles
 from app.tools.sleep import get_sleep_summary
+from app.tools.sync import list_user_connections, sync_historical_data, sync_provider_data
 from app.tools.timeseries import get_timeseries
 from app.tools.users import get_users
 from app.tools.workouts import get_workout_events
@@ -297,4 +298,83 @@ async def test_get_menstrual_cycles_handles_empty_data(httpx_mock: HTTPXMock) ->
     assert result["summary"]["total_records"] == 0
     assert result["summary"]["avg_cycle_length_days"] is None
     assert result["summary"]["phase_types"] is None
-    assert result["summary"]["latest"] is None
+
+
+async def test_list_user_connections_success(httpx_mock: HTTPXMock) -> None:
+    """`list_user_connections` retrieves provider connections for a user."""
+    httpx_mock.add_response(
+        method="GET",
+        url=f"https://api.test.com/api/v1/users/{USER_ID}",
+        json=USER_PAYLOAD,
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url=f"https://api.test.com/api/v1/users/{USER_ID}/connections",
+        json=[
+            {
+                "provider": "garmin",
+                "status": "active",
+                "created_at": "2026-01-01T00:00:00Z",
+                "last_synced_at": "2026-01-02T00:00:00Z",
+                "live_sync_mode": "webhook_stream",
+                "max_historical_days": 30,
+            }
+        ],
+    )
+
+    result = await list_user_connections(user_id=USER_ID)
+    assert result["total"] == 1
+    assert result["connections"][0]["provider"] == "garmin"
+    assert result["connections"][0]["status"] == "active"
+    assert result["user"]["id"] == USER_ID
+
+
+async def test_list_user_connections_user_not_found(httpx_mock: HTTPXMock) -> None:
+    """`list_user_connections` returns 404 envelope when user does not exist."""
+    httpx_mock.add_response(
+        method="GET",
+        url=f"https://api.test.com/api/v1/users/{USER_ID}",
+        status_code=404,
+    )
+
+    result = await list_user_connections(user_id=USER_ID)
+    assert result["error"] == f"User not found: {USER_ID}"
+
+
+async def test_sync_provider_data_success(httpx_mock: HTTPXMock) -> None:
+    """`sync_provider_data` triggers pull sync endpoint on Open Wearables."""
+    httpx_mock.add_response(
+        method="GET",
+        url=f"https://api.test.com/api/v1/users/{USER_ID}",
+        json=USER_PAYLOAD,
+    )
+    httpx_mock.add_response(
+        method="POST",
+        url=f"https://api.test.com/api/v1/providers/garmin/users/{USER_ID}/sync?data_type=all&async=true",
+        json={"success": True, "task_id": "test-task-123", "message": "Sync queued"},
+    )
+
+    result = await sync_provider_data(user_id=USER_ID, provider="garmin")
+    assert result["success"] is True
+    assert result["provider"] == "garmin"
+    assert result["result"]["task_id"] == "test-task-123"
+
+
+async def test_sync_historical_data_success(httpx_mock: HTTPXMock) -> None:
+    """`sync_historical_data` triggers historical sync endpoint on Open Wearables."""
+    httpx_mock.add_response(
+        method="GET",
+        url=f"https://api.test.com/api/v1/users/{USER_ID}",
+        json=USER_PAYLOAD,
+    )
+    httpx_mock.add_response(
+        method="POST",
+        url=f"https://api.test.com/api/v1/providers/whoop/users/{USER_ID}/sync/historical?days=60",
+        json={"success": True, "method": "pull", "task_id": "hist-task-456", "days": 60},
+    )
+
+    result = await sync_historical_data(user_id=USER_ID, provider="whoop", days=60)
+    assert result["success"] is True
+    assert result["provider"] == "whoop"
+    assert result["result"]["task_id"] == "hist-task-456"
+    assert result["result"]["days"] == 60

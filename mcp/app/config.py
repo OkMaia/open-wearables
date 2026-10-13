@@ -30,6 +30,24 @@ class Settings(BaseSettings):
     log_level: str = Field(default="INFO", description="Logging level")
     request_timeout: int = Field(default=30, description="HTTP request timeout in seconds")
 
+    # Server transport settings
+    mcp_transport: str = Field(
+        default="stdio",
+        description="Transport protocol for MCP server: stdio, streamable-http, sse, or http",
+    )
+    mcp_host: str = Field(
+        default="0.0.0.0",
+        description="Host interface for HTTP/SSE transports",
+    )
+    mcp_port: int = Field(
+        default=8001,
+        description="Port for HTTP/SSE transports",
+    )
+    mcp_path: str = Field(
+        default="/mcp",
+        description="Path for HTTP/SSE transports (e.g. /mcp)",
+    )
+
     def is_configured(self) -> bool:
         """Check if the API key is configured."""
         return bool(self.open_wearables_api_key.get_secret_value())
