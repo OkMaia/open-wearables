@@ -135,17 +135,20 @@ logger.info(f"Open Wearables MCP server initialized. API URL: {settings.open_wea
 
 def main() -> None:
     """Entry point for the MCP server."""
+    import os
+
     transport = settings.mcp_transport.strip().lower()
+    port = int(os.environ.get("PORT", str(settings.mcp_port)))
     if transport in {"streamable-http", "streamable_http", "http", "sse"}:
         norm_transport = "streamable-http" if transport in {"streamable-http", "streamable_http"} else transport
         logger.info(
-            f"Starting Open Wearables MCP server on {settings.mcp_host}:{settings.mcp_port}{settings.mcp_path} "
+            f"Starting Open Wearables MCP server on {settings.mcp_host}:{port}{settings.mcp_path} "
             f"using transport '{norm_transport}'"
         )
         mcp.run(
             transport=norm_transport,
             host=settings.mcp_host,
-            port=settings.mcp_port,
+            port=port,
             path=settings.mcp_path,
         )
     else:
