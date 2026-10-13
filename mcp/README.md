@@ -5,6 +5,9 @@ MCP (Model Context Protocol) server for Open Wearables, enabling AI assistants l
 ## Features
 
 - **get_users**: Discover users accessible via your API key
+- **list_user_connections**: List all connected wearable providers (Garmin, Polar, Whoop, etc.) for a user
+- **sync_provider_data**: Trigger on-demand sync from a connected provider for a user
+- **sync_historical_data**: Trigger historical data backfill from a connected provider
 - **get_activity_summary**: Get daily activity data (steps, calories, heart rate, intensity minutes)
 - **get_sleep_summary**: Get sleep data for a user within a date range
 - **get_workout_events**: Get workout/exercise sessions for a user within a date range
@@ -44,6 +47,23 @@ OPEN_WEARABLES_API_KEY=ow_your_api_key_here
 ```bash
 uv run start
 ```
+
+## Running as a Streamable HTTP Server
+
+To expose the MCP server as a network service for remote AI platforms (such as Bot Forge or LangChain remote MCP clients):
+
+1. Set the transport variables in `config/.env`:
+   ```bash
+   MCP_TRANSPORT=streamable-http
+   MCP_HOST=0.0.0.0
+   MCP_PORT=8001
+   MCP_PATH=/mcp
+   ```
+2. Start the server:
+   ```bash
+   uv run start
+   ```
+3. Connect your MCP client to `http://<your-host>:8001/mcp` using `streamable_http` transport.
 
 ## Claude Desktop Configuration
 
@@ -141,6 +161,79 @@ Get all users accessible via the configured API key.
     {"id": "uuid-1", "first_name": "John", "last_name": "Doe", "email": "john@example.com"}
   ],
   "total": 1
+}
+```
+
+### list_user_connections
+
+List all connected wearable devices and provider services for a user.
+
+**Parameters:**
+- `user_id` (required): UUID of the user
+
+**Returns:**
+```json
+{
+  "user": {"id": "uuid-1", "first_name": "John", "last_name": "Doe"},
+  "connections": [
+    {
+      "provider": "garmin",
+      "status": "active",
+      "created_at": "2026-01-10T10:00:00Z",
+      "last_synced_at": "2026-02-01T12:00:00Z",
+      "live_sync_mode": "webhook_stream",
+      "max_historical_days": 30
+    }
+  ],
+  "total": 1
+}
+```
+
+### sync_provider_data
+
+Trigger on-demand data synchronization from a connected wearable provider.
+
+**Parameters:**
+- `user_id` (required): UUID of the user
+- `provider` (required): Name of the provider (e.g., "garmin", "polar", "suunto", "whoop", "oura")
+- `data_type` (optional): "workouts", "247", or "all" (default: "all")
+- `run_async` (optional): Boolean, whether to dispatch via Celery worker (default: true)
+
+**Returns:**
+```json
+{
+  "success": true,
+  "provider": "garmin",
+  "user_id": "uuid-1",
+  "result": {
+    "async": true,
+    "task_id": "celery-task-uuid",
+    "message": "Garmin sync task dispatched"
+  }
+}
+```
+
+### sync_historical_data
+
+Trigger a historical backfill sync from a connected wearable provider.
+
+**Parameters:**
+- `user_id` (required): UUID of the user
+- `provider` (required): Name of the provider
+- `days` (optional): Number of days of history to fetch (1-365, default: 90)
+
+**Returns:**
+```json
+{
+  "success": true,
+  "provider": "whoop",
+  "user_id": "uuid-1",
+  "result": {
+    "success": true,
+    "method": "pull",
+    "task_id": "celery-task-uuid",
+    "days": 90
+  }
 }
 ```
 

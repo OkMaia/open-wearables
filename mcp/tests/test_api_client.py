@@ -70,3 +70,63 @@ def test_typed_errors_inherit_from_base() -> None:
     assert issubclass(AuthenticationError, OpenWearablesError)
     assert issubclass(NotFoundError, OpenWearablesError)
     assert issubclass(ConfigurationError, OpenWearablesError)
+
+
+async def test_get_user_connections(
+    api_client: OpenWearablesClient,
+    httpx_mock: HTTPXMock,
+) -> None:
+    """Test getting user provider connections."""
+    user_id = "00000000-0000-0000-0000-000000000000"
+    httpx_mock.add_response(
+        method="GET",
+        url=f"https://api.test.com/api/v1/users/{user_id}/connections",
+        json=[{"provider": "garmin", "status": "active"}],
+    )
+
+    result = await api_client.get_user_connections(user_id)
+    assert len(result) == 1
+    assert result[0]["provider"] == "garmin"
+
+
+async def test_sync_provider_data(
+    api_client: OpenWearablesClient,
+    httpx_mock: HTTPXMock,
+) -> None:
+    """Test triggering sync provider data."""
+    user_id = "00000000-0000-0000-0000-000000000000"
+    httpx_mock.add_response(
+        method="POST",
+        url=f"https://api.test.com/api/v1/providers/garmin/users/{user_id}/sync?data_type=workouts&async=true",
+        json={"success": True, "task_id": "abc-123"},
+    )
+
+    result = await api_client.sync_provider_data(
+        user_id=user_id,
+        provider="garmin",
+        data_type="workouts",
+        run_async=True,
+    )
+    assert result["success"] is True
+    assert result["task_id"] == "abc-123"
+
+
+async def test_sync_historical_data(
+    api_client: OpenWearablesClient,
+    httpx_mock: HTTPXMock,
+) -> None:
+    """Test triggering historical sync."""
+    user_id = "00000000-0000-0000-0000-000000000000"
+    httpx_mock.add_response(
+        method="POST",
+        url=f"https://api.test.com/api/v1/providers/whoop/users/{user_id}/sync/historical?days=30",
+        json={"success": True, "days": 30},
+    )
+
+    result = await api_client.sync_historical_data(
+        user_id=user_id,
+        provider="whoop",
+        days=30,
+    )
+    assert result["success"] is True
+    assert result["days"] == 30
