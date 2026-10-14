@@ -7,14 +7,14 @@
 
 	let { data }: { data: PageData } = $props();
 
-	const what = $derived(data.provider ?? 'Your device');
+	const what = $derived(data.provider ?? 'Dispositivo');
 </script>
 
 <svelte:head>
-	<title>Connected · Open Wearables</title>
+	<title>Conectado · Open Wearables</title>
 </svelte:head>
 
-<PairingShell title="{what} is connected" lead="Data will start arriving shortly.">
+<PairingShell title="{what} conectado com sucesso!" lead="Seus dados começarão a ser sincronizados em instantes.">
 	<div class="flex flex-col items-center gap-6">
 		<span
 			aria-hidden="true"
@@ -26,12 +26,12 @@
 		<div class="flex w-full flex-col gap-2">
 			{#if data.returnUrl}
 				<LinkButton href={data.returnUrl} rel="noreferrer">
-					Continue
+					Continuar
 					<ArrowRight size={16} aria-hidden="true" />
 				</LinkButton>
 			{/if}
 
-			<LinkButton href={data.pairAnother} variant="outline">Connect another device</LinkButton>
+			<LinkButton href={data.pairAnother} variant="outline">Conectar outro dispositivo</LinkButton>
 		</div>
 	</div>
 </PairingShell>

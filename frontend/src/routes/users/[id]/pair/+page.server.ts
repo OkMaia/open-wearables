@@ -26,8 +26,8 @@ export const actions: Actions = {
 				target
 			));
 		} catch (error) {
-			const detail = error instanceof ApiError ? error.message : 'Try again in a moment.';
-			return fail(400, { provider, message: `Could not reach ${provider}. ${detail}` });
+			const detail = error instanceof ApiError ? error.message : 'Tente novamente em instantes.';
+			return fail(400, { provider, message: `Não foi possível conectar ao ${provider}. ${detail}` });
 		}
 
 		redirect(303, authorizationUrl);

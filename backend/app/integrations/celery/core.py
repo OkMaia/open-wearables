@@ -208,8 +208,14 @@ def create_celery() -> Celery:
 
     # rediss:// alone isn't enough for Celery — the broker/result transports read
     # their TLS requirements from these dicts. Required for ElastiCache (TLS).
-    if settings.redis_ssl:
-        ssl_options = {"ssl_cert_reqs": ssl.CERT_REQUIRED}
+    is_tls = settings.redis_ssl or (settings.redis_url and settings.redis_url.startswith("rediss://"))
+    if is_tls:
+        cert_reqs = ssl.CERT_REQUIRED
+        if settings.redis_ssl_cert_reqs == "none":
+            cert_reqs = ssl.CERT_NONE
+        elif settings.redis_ssl_cert_reqs == "optional":
+            cert_reqs = ssl.CERT_OPTIONAL
+        ssl_options = {"ssl_cert_reqs": cert_reqs}
         celery_app.conf.broker_use_ssl = ssl_options
         celery_app.conf.redis_backend_use_ssl = ssl_options
 

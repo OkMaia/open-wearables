@@ -8,7 +8,7 @@ const PAIR = `/users/${USER}/pair`;
 test('opens for someone with no session at all', async ({ page }) => {
 	await page.goto(PAIR);
 
-	await expect(page.getByRole('heading', { name: 'Connect a device' })).toBeVisible();
+	await expect(page.getByRole('heading', { name: /Connect a device|Conectar dispositivo/ })).toBeVisible();
 	await expect(page.getByRole('button', { name: /Garmin/ })).toBeVisible();
 	await expect(page).toHaveURL(PAIR);
 });
@@ -18,8 +18,8 @@ test('walks the provider round trip and names what connected', async ({ page }) 
 	await page.getByRole('button', { name: /Garmin/ }).click();
 
 	await expect(page).toHaveURL(new RegExp(`${PAIR}/success\\?provider=garmin$`));
-	await expect(page.getByRole('heading', { name: 'Garmin is connected' })).toBeVisible();
-	await expect(page.getByRole('link', { name: 'Connect another device' })).toHaveAttribute(
+	await expect(page.getByRole('heading', { name: /Garmin is connected|Garmin conectado/ })).toBeVisible();
+	await expect(page.getByRole('link', { name: /Connect another device|Conectar outro dispositivo/ })).toHaveAttribute(
 		'href',
 		PAIR
 	);
@@ -46,7 +46,7 @@ test('carries a return link through the provider, and only if it is a web addres
 	await page.goto(`${PAIR}?redirect_url=https%3A%2F%2Fclient.example.com%2Fdone`);
 	await page.getByRole('button', { name: /Oura/ }).click();
 
-	await expect(page.getByRole('link', { name: 'Continue' })).toHaveAttribute(
+	await expect(page.getByRole('link', { name: /Continue|Continuar/ })).toHaveAttribute(
 		'href',
 		'https://client.example.com/done'
 	);
@@ -57,6 +57,6 @@ test('drops a hostile return link rather than rendering it', async ({ page }) =>
 	await page.goto(`${PAIR}?redirect_url=javascript%3Aalert(1)`);
 	await page.getByRole('button', { name: /Oura/ }).click();
 
-	await expect(page.getByRole('heading', { name: 'Oura is connected' })).toBeVisible();
-	await expect(page.getByRole('link', { name: 'Continue' })).toHaveCount(0);
+	await expect(page.getByRole('heading', { name: /Oura is connected|Oura conectado/ })).toBeVisible();
+	await expect(page.getByRole('link', { name: /Continue|Continuar/ })).toHaveCount(0);
 });

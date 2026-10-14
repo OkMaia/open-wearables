@@ -8,7 +8,7 @@
 
 <main class="flex min-h-dvh flex-col items-center px-4 py-10 sm:py-16">
 	<div class="flex w-full max-w-lg flex-col items-center gap-8">
-		<Wordmark class="h-12" />
+		<Wordmark class="h-14" />
 
 		<div class="space-y-2 text-center">
 			<h1 class="text-2xl font-medium text-foreground sm:text-3xl">{title}</h1>
@@ -19,7 +19,7 @@
 
 		<p class="flex items-center gap-2 text-xs text-muted-foreground">
 			<ShieldCheck size={14} aria-hidden="true" />
-			You sign in with the provider - we never see your password.
+			Você faz login direto com o provedor — nós nunca temos acesso à sua senha.
 		</p>
 	</div>
 </main>

@@ -70,6 +70,7 @@ class Settings(BaseSettings):
     otel_export_redact_keys: str = ""
 
     # DATABASE SETTINGS
+    database_url: str | None = None
     db_host: str = "db"
     db_port: int = 5432
     db_name: str = "open-wearables"
@@ -94,12 +95,14 @@ class Settings(BaseSettings):
     min_password_length: int = 8
 
     # REDIS SETTINGS
+    redis_url_env: str | None = Field(default=None, alias="redis_url")
     redis_host: str = "localhost"
     redis_port: int = 6379
     redis_db: int = 0
     redis_password: SecretStr | None = None
     redis_username: str | None = None  # Redis 6.0+ ACL
     redis_ssl: bool = False  # True for TLS (e.g. ElastiCache transit_encryption_enabled)
+    redis_ssl_cert_reqs: Literal["required", "optional", "none"] = "required"
 
     # ADMIN ACCOUNT SEED
     admin_email: str = "admin@admin.com"
@@ -490,13 +493,21 @@ class Settings(BaseSettings):
 
     @property
     def redis_url(self) -> str:
-        """Get Redis connection URL built from individual settings.
+        """Get Redis connection URL built from individual settings or REDIS_URL.
 
-        Credentials are URL-encoded so tokens containing reserved characters
-        (managed Redis AUTH tokens often do) don't corrupt the URL. When
-        redis_ssl is set the scheme becomes rediss:// and TLS cert verification
-        is required — needed for ElastiCache (transit_encryption_enabled).
+        If REDIS_URL is provided directly in the environment, use it.
+        Otherwise build from individual settings. Credentials are URL-encoded
+        so tokens containing reserved characters (managed Redis AUTH tokens often do)
+        don't corrupt the URL. When redis_ssl is set the scheme becomes rediss://
+        and TLS cert verification is required — needed for ElastiCache (transit_encryption_enabled).
         """
+        if self.redis_url_env:
+            url = self.redis_url_env
+            if url.startswith("rediss://") and "ssl_cert_reqs" not in url:
+                separator = "&" if "?" in url else "?"
+                url = f"{url}{separator}ssl_cert_reqs={self.redis_ssl_cert_reqs}"
+            return url
+
         auth_part = ""
         if self.redis_username and self.redis_password:
             auth_part = (
@@ -508,7 +519,7 @@ class Settings(BaseSettings):
             auth_part = f"{quote(self.redis_username, safe='')}@"
 
         scheme = "rediss" if self.redis_ssl else "redis"
-        query = "?ssl_cert_reqs=required" if self.redis_ssl else ""
+        query = f"?ssl_cert_reqs={self.redis_ssl_cert_reqs}" if self.redis_ssl else ""
         return f"{scheme}://{auth_part}{self.redis_host}:{self.redis_port}/{self.redis_db}{query}"
 
     # Decryptor for encrypted fields
@@ -521,6 +532,13 @@ class Settings(BaseSettings):
 
     @property
     def db_uri(self) -> str:
+        if self.database_url:
+            url = self.database_url
+            if url.startswith("postgres://"):
+                return url.replace("postgres://", "postgresql+psycopg://", 1)
+            if url.startswith("postgresql://") and not url.startswith("postgresql+psycopg://"):
+                return url.replace("postgresql://", "postgresql+psycopg://", 1)
+            return url
         return (
             f"postgresql+psycopg://"
             f"{self.db_user}:{self.db_password.get_secret_value()}"

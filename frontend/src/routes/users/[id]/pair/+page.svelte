@@ -10,10 +10,10 @@
 </script>
 
 <svelte:head>
-	<title>Connect a device · Open Wearables</title>
+	<title>Conectar dispositivo · Open Wearables</title>
 </svelte:head>
 
-<PairingShell title="Connect a device" lead="Choose where your health data should come from.">
+<PairingShell title="Conectar dispositivo" lead="Escolha de onde seus dados de saúde serão sincronizados.">
 	<div class="flex flex-col gap-4">
 		{#if form?.message}
 			<Alert>{form.message}</Alert>
@@ -23,8 +23,8 @@
 			<div class="rounded-xl border border-border bg-surface">
 				<EmptyState
 					icon={Unplug}
-					title="Nothing to connect yet"
-					description="Ask whoever sent you this link to enable a provider."
+					title="Nenhum dispositivo disponível"
+					description="Peça ao administrador para habilitar um provedor de wearables."
 				/>
 			</div>
 		{:else}

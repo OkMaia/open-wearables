@@ -27,7 +27,7 @@
 		<span class="min-w-0 flex-1">
 			<span class="block truncate font-medium text-foreground">{provider.name}</span>
 			<span class="block text-xs text-muted-foreground">
-				{submit.submitting ? 'Opening…' : 'Sign in to connect'}
+				{submit.submitting ? 'Abrindo…' : 'Entrar para conectar'}
 			</span>
 		</span>
 

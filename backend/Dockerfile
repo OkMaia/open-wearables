@@ -39,6 +39,10 @@ FROM python:3.14-slim
     ENV PATH="/opt/venv/bin:$PATH"
     ENV UV_PROJECT_ENVIRONMENT=/opt/venv
     ENV UV_NO_SYNC=true
+    ENV PYTHONPYCACHEPREFIX=/tmp/pycache
+    ENV UV_CACHE_DIR=/tmp/uv-cache
+
+    RUN chmod -R a+rwX /root_project
 
     # Commit SHA for Sentry release tracking. Optional: defaults to empty when
     # not passed (e.g. local builds), in which case the app falls back to the
@@ -47,3 +51,5 @@ FROM python:3.14-slim
     ENV GIT_SHA=$GIT_SHA
 
     EXPOSE 8000
+
+    CMD ["scripts/start/app.sh"]

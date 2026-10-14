@@ -129,9 +129,7 @@ class GoogleHealth247Data(Base247DataTemplate):
             succeeded += self._store_samples(db, user_id, daily.name, build, results, failures)
 
         try:
-            with db.begin_nested():
-                sleep_count = self.sleep.load_and_save(db, user_id, start_time, end_time)
-            db.commit()
+            sleep_count = self.sleep.load_and_save(db, user_id, start_time, end_time)
             succeeded += 1
         except Exception as e:
             db.rollback()
