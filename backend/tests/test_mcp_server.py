@@ -6,9 +6,9 @@ from fastapi.testclient import TestClient
 
 def test_mcp_endpoint_mounted(client: TestClient) -> None:
     """Verify that /mcp route is accessible and responds to MCP streamable requests."""
-    response = client.get("/mcp")
-    # Streamable HTTP / SSE / MCP endpoint typically responds 200 or 400/405/404 depending on method/headers
-    assert response.status_code in {200, 400, 404, 405}
+    response = client.get("/mcp", follow_redirects=True)
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
 
 
 def test_mcp_auth_parsing() -> None:

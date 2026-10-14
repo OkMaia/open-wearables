@@ -14,6 +14,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app.api import head_router
 from app.config import settings
@@ -109,6 +110,7 @@ raw_payload_storage.configure(
 add_cors_middleware(api)
 add_access_log_middleware(api)
 add_endpoint_usage_middleware(api)
+api.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
 # Mount static files for provider icons
 static_dir = Path(__file__).parent / "static"
