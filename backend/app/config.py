@@ -47,6 +47,7 @@ class Settings(BaseSettings):
     paging_limit: int = 100
     cors_origins: list[AnyHttpUrl] = []
     cors_allow_all: bool = False
+    mcp_enabled: bool = True
 
     # None → derived in derive_access_log_level (prod: errors only, else: all)
     access_log_level: AccessLogLevel | None = None

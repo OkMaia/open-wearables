@@ -65,6 +65,35 @@ To expose the MCP server as a network service for remote AI platforms (such as B
    ```
 3. Connect your MCP client to `http://<your-host>:8001/mcp` using `streamable_http` transport.
 
+## Heroku Deployment
+
+To deploy the MCP server as a standalone application on Heroku:
+
+1. **Create the Heroku app**:
+   ```bash
+   heroku create nome-do-seu-mcp-app
+   ```
+2. **Add the Python buildpack**:
+   ```bash
+   heroku buildpacks:set heroku/python --app nome-do-seu-mcp-app
+   ```
+3. **Configure environment variables**:
+   ```bash
+   heroku config:set \
+     MCP_TRANSPORT=streamable-http \
+     MCP_PATH=/mcp \
+     OPEN_WEARABLES_API_URL=https://api.seu-open-wearables.com \
+     OPEN_WEARABLES_API_KEY=sk-sua-chave \
+     --app nome-do-seu-mcp-app
+   ```
+4. **Deploy the repository / subdirectory**:
+   ```bash
+   git push heroku main
+   ```
+   *(Ou usando `git subtree push --prefix mcp heroku main` se o app Heroku for isolado na pasta `mcp`)*.
+
+O servidor responderá no endpoint: `https://nome-do-seu-mcp-app.herokuapp.com/mcp` com transporte `streamable_http`.
+
 ## Claude Desktop Configuration
 
 Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:

@@ -70,7 +70,16 @@ async def _lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
             "See docs/dev-guides/telemetry.mdx - disable with TELEMETRY_ENABLED=false."
         )
     svix_service.register_event_types()
-    yield
+
+    if settings.mcp_enabled:
+        from app.mcp import get_open_wearables_mcp_app
+
+        mcp_asgi = get_open_wearables_mcp_app()
+        async with mcp_asgi.router.lifespan_context(mcp_asgi):
+            yield
+    else:
+        yield
+
     # Hand the last partial interval of telemetry counters to Redis before exiting.
     with contextlib.suppress(Exception):
         await asyncio.to_thread(endpoint_usage.flush)
@@ -159,3 +168,9 @@ async def http_exception_handler_with_body_log(request: Request, exc: StarletteH
 
 api.include_router(head_router)
 mount_routers(api, settings.api_v1, API_KEY_REQUIRED)
+
+if settings.mcp_enabled:
+    from app.mcp import get_open_wearables_mcp_app
+
+    mcp_app = get_open_wearables_mcp_app()
+    api.mount("/mcp", mcp_app)

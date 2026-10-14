@@ -134,7 +134,17 @@ uv run start
 
 ### 4. Running as a Streamable HTTP Server
 
-To expose the MCP server over HTTP for remote agents (e.g. Bot Forge):
+The MCP server can be used in two ways:
+
+#### Option A: In-process (Embedded in FastAPI at `/mcp`)
+The Open Wearables FastAPI backend mounts the Streamable HTTP MCP server directly at `/mcp` by default.
+- URL: `https://<your-open-wearables-domain>/mcp`
+- Transport: `streamable_http`
+- Authentication: Pass `Authorization: Bearer <api_key>` or `X-Open-Wearables-API-Key: <api_key>`.
+- Control with: `MCP_ENABLED=true` (or `false` to disable) in backend environment.
+
+#### Option B: Standalone MCP Server
+To run the standalone server in `mcp/`:
 
 ```bash
 # In config/.env
