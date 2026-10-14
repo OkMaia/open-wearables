@@ -1,6 +1,7 @@
 """Tests for StravaWorkouts normalization."""
 
-from unittest.mock import MagicMock
+from decimal import Decimal
+from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
@@ -79,3 +80,170 @@ class TestStravaWorkoutsNormalization:
         assert len(details) == 3
         assert details[1].label == "x" * 255
         assert details[2].entry_source == EntrySource.MANUAL
+
+    def test_normalize_workout_with_average_cadence(self, workouts: StravaWorkouts) -> None:
+        activity = StravaActivityJSON(
+            id=1001,
+            name="Morning Run",
+            type="Run",
+            sport_type="Run",
+            start_date="2024-01-15T08:00:00Z",
+            elapsed_time=1800,
+            average_cadence=172.5,
+        )
+        _, detail = workouts._normalize_workout(activity, uuid4())
+        assert detail.average_cadence == Decimal("172.5")
+
+    def test_normalize_workout_cadence_from_laps(self, workouts: StravaWorkouts) -> None:
+        activity = StravaActivityJSON(
+            id=1002,
+            name="Interval Run",
+            type="Run",
+            sport_type="Run",
+            start_date="2024-01-15T08:00:00Z",
+            elapsed_time=2000,
+            laps=[
+                {"average_cadence": 160.0, "moving_time": 600},
+                {"average_cadence": 180.0, "moving_time": 600},
+            ],
+        )
+        _, detail = workouts._normalize_workout(activity, uuid4())
+        assert detail.average_cadence == Decimal("170.0")
+
+    def test_normalize_workout_with_segments(self, workouts: StravaWorkouts) -> None:
+        activity = StravaActivityJSON(
+            id=1003,
+            name="Tempo Run",
+            type="Run",
+            sport_type="Run",
+            start_date="2024-01-15T08:00:00Z",
+            elapsed_time=3600,
+            laps=[
+                {
+                    "lap_index": 1,
+                    "name": "Lap 1",
+                    "elapsed_time": 300,
+                    "distance": 1000.0,
+                    "average_speed": 3.33,
+                    "average_cadence": 170.0,
+                    "average_heartrate": 150.0,
+                }
+            ],
+            splits_metric=[
+                {
+                    "split": 1,
+                    "elapsed_time": 300,
+                    "distance": 1000.0,
+                    "average_speed": 3.33,
+                    "elevation_difference": 5.0,
+                    "pace_zone": 2,
+                }
+            ],
+        )
+        _, detail = workouts._normalize_workout(activity, uuid4())
+        assert detail.segments is not None
+        assert len(detail.segments) == 2
+        lap_seg = detail.segments[0]
+        assert lap_seg["kind"] == "lap"
+        assert lap_seg["name"] == "Lap 1"
+        assert lap_seg["avg_cadence"] == 170.0
+        assert lap_seg["avg_heart_rate"] == 150.0
+
+        split_seg = detail.segments[1]
+        assert split_seg["kind"] == "split"
+        assert split_seg["index"] == 1
+        assert split_seg["elevation_difference"] == 5.0
+        assert split_seg["pace_zone"] == 2
+
+    def test_parse_activity_zones(self, workouts: StravaWorkouts) -> None:
+        raw_zones = [
+            {
+                "type": "heartrate",
+                "max": 190,
+                "distribution_buckets": [
+                    {"min": 0, "max": 120, "time": 100},
+                    {"min": 120, "max": 150, "time": 300},
+                    {"min": 150, "max": 175, "time": 600},
+                    {"min": 175, "max": -1, "time": 200},
+                ],
+            },
+            {
+                "type": "power",
+                "distribution_buckets": [
+                    {"min": 0, "max": 150, "time": 250},
+                    {"min": 150, "max": 250, "time": 500},
+                ],
+            },
+        ]
+        hr_zones, power_zones = workouts._parse_activity_zones(raw_zones)
+        assert hr_zones is not None
+        assert hr_zones.max_hr == 190
+        assert len(hr_zones.zones) == 4
+        assert hr_zones.zones[0].seconds == 100.0
+        assert hr_zones.zones[0].max_bpm == 120
+        assert hr_zones.zones[3].max_bpm is None
+
+        assert power_zones is not None
+        assert len(power_zones.zones) == 2
+        assert power_zones.zones[1].max_watts == 250
+
+    def test_fetch_workout_zones_skips_when_no_hr_or_power(self, workouts: StravaWorkouts) -> None:
+        activity = self._activity()
+        db = MagicMock()
+        hr_zones, power_zones = workouts._fetch_workout_zones(db, uuid4(), activity)
+        assert hr_zones is None
+        assert power_zones is None
+
+    def test_load_data_fetches_detail_when_calories_none(self, workouts: StravaWorkouts) -> None:
+        db = MagicMock()
+        user_id = uuid4()
+
+        summary_activity = {
+            "id": 55555,
+            "name": "Summary Run",
+            "type": "Run",
+            "sport_type": "Run",
+            "start_date": "2024-01-15T08:00:00Z",
+            "elapsed_time": 1800,
+            "calories": None,
+            "laps": None,
+        }
+
+        detailed_activity = {
+            "id": 55555,
+            "name": "Summary Run",
+            "type": "Run",
+            "sport_type": "Run",
+            "start_date": "2024-01-15T08:00:00Z",
+            "elapsed_time": 1800,
+            "calories": 250.0,
+            "average_cadence": 165.0,
+            "laps": [
+                {
+                    "lap_index": 1,
+                    "elapsed_time": 1800,
+                    "distance": 5000.0,
+                }
+            ],
+        }
+
+        with (
+            patch.object(workouts, "get_workouts", return_value=[summary_activity]),
+            patch.object(workouts, "get_workout_detail_from_api", return_value=detailed_activity) as mock_detail,
+            patch.object(workouts, "_fetch_workout_zones", return_value=(None, None)),
+            patch("app.services.providers.strava.workouts.event_record_service") as mock_event_service,
+            patch.object(workouts, "_ingest_workout_streams"),
+        ):
+            mock_record = MagicMock()
+            mock_record.id = uuid4()
+            mock_event_service.create.return_value = mock_record
+
+            count = workouts.load_data(db, user_id)
+
+            assert count == 1
+            mock_detail.assert_called_once_with(db, user_id, "55555")
+            created_detail = mock_event_service.create_detail.call_args[0][1]
+            assert created_detail.energy_burned == Decimal("250.0")
+            assert created_detail.average_cadence == Decimal("165.0")
+            assert created_detail.segments is not None
+            assert len(created_detail.segments) == 1

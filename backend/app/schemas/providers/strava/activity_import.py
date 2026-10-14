@@ -45,6 +45,9 @@ class ActivityJSON(BaseModel):
     average_speed: float | None = None  # meters/second
     max_speed: float | None = None  # meters/second
 
+    # Cadence
+    average_cadence: float | None = None
+
     # Power
     average_watts: float | None = None
     max_watts: int | None = None
@@ -71,3 +74,9 @@ class ActivityJSON(BaseModel):
     start_date_local: str | None = None  # ISO 8601 local
     timezone: str | None = None
     utc_offset: float | None = None
+
+    # Laps and splits (DetailedActivity)
+    laps: list[dict] | None = None
+    splits_metric: list[dict] | None = None
+    splits_standard: list[dict] | None = None
+    description: str | None = None

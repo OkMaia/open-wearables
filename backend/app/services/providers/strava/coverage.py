@@ -22,20 +22,24 @@ TIMESERIES: frozenset[SeriesType] = frozenset(
 # (/api/v3/athlete/activities + /api/v3/activities/{id}).
 WORKOUT_FIELDS: frozenset[str] = frozenset(
     {
-        "heart_rate_avg",
-        "heart_rate_max",
-        "distance",
+        "average_cadence",
         "average_speed",
-        "max_speed",
         "average_watts",
-        "max_watts",
-        "total_elevation_gain",
+        "distance",
         "elev_high",
         "elev_low",
         "energy_burned",
-        "moving_time_seconds",
         "entry_source",
+        "heart_rate_avg",
+        "heart_rate_max",
+        "hr_zones",
         "label",
+        "max_speed",
+        "max_watts",
+        "moving_time_seconds",
+        "power_zones",
+        "segments",
+        "total_elevation_gain",
     }
 )
 

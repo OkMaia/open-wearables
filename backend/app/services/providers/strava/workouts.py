@@ -14,6 +14,7 @@ from app.schemas.model_crud.activities import (
     EventRecordMetrics,
     TimeSeriesSampleCreate,
 )
+from app.schemas.model_crud.activities.zones import HRZone, HRZones, PowerZone, PowerZones
 from app.schemas.providers.strava import (
     ActivityJSON as StravaActivityJSON,
 )
@@ -165,6 +166,21 @@ class StravaWorkouts(BaseWorkoutsTemplate):
         if raw_workout.max_speed is not None:
             metrics["max_speed"] = Decimal(raw_workout.max_speed)
 
+        # Cadence (rpm)
+        if raw_workout.average_cadence is not None:
+            metrics["average_cadence"] = Decimal(str(raw_workout.average_cadence))
+        elif raw_workout.laps:
+            cadence_laps = [
+                (float(lap["average_cadence"]), float(lap.get("moving_time") or lap.get("elapsed_time") or 1))
+                for lap in raw_workout.laps
+                if lap.get("average_cadence") is not None
+            ]
+            if cadence_laps:
+                total_time = sum(t for _, t in cadence_laps)
+                if total_time > 0:
+                    avg_cadence = sum(c * t for c, t in cadence_laps) / total_time
+                    metrics["average_cadence"] = Decimal(str(round(avg_cadence, 2)))
+
         # Power (watts)
         if raw_workout.average_watts is not None:
             metrics["average_watts"] = Decimal(raw_workout.average_watts)
@@ -200,10 +216,150 @@ class StravaWorkouts(BaseWorkoutsTemplate):
 
         return metrics
 
+    def _build_segments(self, raw_workout: StravaActivityJSON) -> list[dict[str, Any]] | None:
+        """Extract laps and metric splits as workout segments."""
+        segments: list[dict[str, Any]] = []
+
+        if raw_workout.laps:
+            for idx, lap in enumerate(raw_workout.laps):
+                seg: dict[str, Any] = {
+                    "kind": "lap",
+                    "index": lap.get("lap_index") if lap.get("lap_index") is not None else idx,
+                }
+                if lap.get("name"):
+                    seg["name"] = str(lap["name"])
+                if lap.get("start_date"):
+                    seg["start_time"] = str(lap["start_date"])
+                if lap.get("elapsed_time") is not None:
+                    seg["elapsed_seconds"] = float(lap["elapsed_time"])
+                if lap.get("moving_time") is not None:
+                    seg["moving_time_seconds"] = float(lap["moving_time"])
+                if lap.get("distance") is not None:
+                    seg["distance_meters"] = float(lap["distance"])
+                if lap.get("average_speed") is not None:
+                    seg["avg_speed"] = float(lap["average_speed"])
+                if lap.get("max_speed") is not None:
+                    seg["max_speed"] = float(lap["max_speed"])
+                if lap.get("average_cadence") is not None:
+                    seg["avg_cadence"] = float(lap["average_cadence"])
+                if lap.get("average_heartrate") is not None:
+                    seg["avg_heart_rate"] = float(lap["average_heartrate"])
+                if lap.get("max_heartrate") is not None:
+                    seg["max_heart_rate"] = float(lap["max_heartrate"])
+                if lap.get("average_watts") is not None:
+                    seg["avg_power"] = float(lap["average_watts"])
+                if lap.get("total_elevation_gain") is not None:
+                    seg["total_elevation_gain"] = float(lap["total_elevation_gain"])
+                segments.append(seg)
+
+        if raw_workout.splits_metric:
+            for idx, split in enumerate(raw_workout.splits_metric):
+                seg = {
+                    "kind": "split",
+                    "index": split.get("split") if split.get("split") is not None else idx,
+                }
+                if split.get("elapsed_time") is not None:
+                    seg["elapsed_seconds"] = float(split["elapsed_time"])
+                if split.get("moving_time") is not None:
+                    seg["moving_time_seconds"] = float(split["moving_time"])
+                if split.get("distance") is not None:
+                    seg["distance_meters"] = float(split["distance"])
+                if split.get("average_speed") is not None:
+                    seg["avg_speed"] = float(split["average_speed"])
+                if split.get("elevation_difference") is not None:
+                    seg["elevation_difference"] = float(split["elevation_difference"])
+                if split.get("pace_zone") is not None:
+                    seg["pace_zone"] = int(split["pace_zone"])
+                if split.get("average_heartrate") is not None:
+                    seg["avg_heart_rate"] = float(split["average_heartrate"])
+                segments.append(seg)
+
+        return segments if segments else None
+
+    def _parse_activity_zones(self, raw_zones: list[dict[str, Any]]) -> tuple[HRZones | None, PowerZones | None]:
+        """Parse raw Strava activity zones response into HRZones and PowerZones."""
+        hr_zones: HRZones | None = None
+        power_zones: PowerZones | None = None
+
+        for item in raw_zones:
+            if not isinstance(item, dict):
+                continue
+            zone_type = item.get("type")
+            buckets = item.get("distribution_buckets")
+            if not isinstance(buckets, list):
+                continue
+
+            if zone_type == "heartrate":
+                parsed_hr: list[HRZone] = []
+                for i, b in enumerate(buckets):
+                    if not isinstance(b, dict):
+                        continue
+                    time_secs = float(b.get("time") or 0)
+                    max_bpm = b.get("max")
+                    if max_bpm is not None and max_bpm < 0:
+                        max_bpm = None
+                    parsed_hr.append(HRZone(zone=i, seconds=time_secs, max_bpm=max_bpm))
+                if parsed_hr:
+                    max_hr = item.get("max")
+                    hr_zones = HRZones(
+                        zones=parsed_hr,
+                        max_hr=int(max_hr) if max_hr is not None and max_hr > 0 else None,
+                    )
+
+            elif zone_type == "power":
+                parsed_power: list[PowerZone] = []
+                for i, b in enumerate(buckets):
+                    if not isinstance(b, dict):
+                        continue
+                    time_secs = float(b.get("time") or 0)
+                    max_watts = b.get("max")
+                    if max_watts is not None and max_watts < 0:
+                        max_watts = None
+                    parsed_power.append(PowerZone(zone=i, seconds=time_secs, max_watts=max_watts))
+                if parsed_power:
+                    power_zones = PowerZones(zones=parsed_power)
+
+        return hr_zones, power_zones
+
+    def _fetch_workout_zones(
+        self,
+        db: DbSession,
+        user_id: UUID,
+        activity: StravaActivityJSON,
+    ) -> tuple[HRZones | None, PowerZones | None]:
+        """Fetch heart rate and power zones from Strava API if available."""
+        has_hr = bool(activity.has_heartrate or activity.average_heartrate)
+        has_power = bool(activity.device_watts or activity.average_watts)
+        if not (has_hr or has_power):
+            return None, None
+
+        try:
+            raw = self._make_api_request(
+                db,
+                user_id,
+                f"/api/v3/activities/{activity.id}/zones",
+            )
+            if isinstance(raw, list):
+                return self._parse_activity_zones(raw)
+        except Exception as exc:
+            log_structured(
+                self.logger,
+                "debug",
+                "Could not fetch Strava activity zones",
+                provider="strava",
+                action="strava_fetch_zones_failed",
+                activity_id=str(activity.id),
+                user_id=str(user_id),
+                error=str(exc),
+            )
+        return None, None
+
     def _normalize_workout(
         self,
         raw_workout: StravaActivityJSON,
         user_id: UUID,
+        hr_zones: HRZones | None = None,
+        power_zones: PowerZones | None = None,
     ) -> tuple[EventRecordCreate, EventRecordDetailCreate]:
         """Normalize Strava activity to EventRecordCreate and EventRecordDetailCreate."""
         workout_id = uuid4()
@@ -221,6 +377,7 @@ class StravaWorkouts(BaseWorkoutsTemplate):
             zone_offset = offset_to_iso(int(raw_workout.utc_offset))
 
         metrics = self._build_metrics(raw_workout)
+        segments = self._build_segments(raw_workout)
 
         source_name = raw_workout.device_name or "Strava"
         device_model = raw_workout.device_name or ""
@@ -242,6 +399,9 @@ class StravaWorkouts(BaseWorkoutsTemplate):
 
         detail = EventRecordDetailCreate(
             record_id=workout_id,
+            segments=segments,
+            hr_zones=hr_zones,
+            power_zones=power_zones,
             **metrics,
         )
 
@@ -409,12 +569,35 @@ class StravaWorkouts(BaseWorkoutsTemplate):
 
         count = 0
         for activity in parsed_activities:
-            record, detail = self._normalize_workout(activity, user_id)
+            # If the activity came from the summary list, attempt to fetch the detailed activity
+            # so calories, laps, and splits are populated. Fall back to summary on error.
+            detailed_activity = activity
+            if activity.calories is None or activity.laps is None:
+                try:
+                    raw_detail = self.get_workout_detail_from_api(db, user_id, str(activity.id))
+                    if isinstance(raw_detail, dict):
+                        detailed_activity = StravaActivityJSON(**raw_detail)
+                except Exception as e:
+                    log_structured(
+                        self.logger,
+                        "debug",
+                        "Could not fetch detailed Strava activity, using summary",
+                        provider="strava",
+                        action="strava_fetch_detail_fallback",
+                        activity_id=str(activity.id),
+                        user_id=str(user_id),
+                        error=str(e),
+                    )
+
+            hr_zones, power_zones = self._fetch_workout_zones(db, user_id, detailed_activity)
+            record, detail = self._normalize_workout(
+                detailed_activity, user_id, hr_zones=hr_zones, power_zones=power_zones
+            )
             created_record = event_record_service.create(db, record)
             detail_for_record = detail.model_copy(update={"record_id": created_record.id})
             event_record_service.create_detail(db, detail_for_record)
             count += 1
-            self._ingest_workout_streams(db, activity, user_id, record)
+            self._ingest_workout_streams(db, detailed_activity, user_id, record)
 
         return count
 
@@ -436,7 +619,8 @@ class StravaWorkouts(BaseWorkoutsTemplate):
         """
         created_ids: list[UUID] = []
 
-        record, detail = self._normalize_workout(activity, user_id)
+        hr_zones, power_zones = self._fetch_workout_zones(db, user_id, activity)
+        record, detail = self._normalize_workout(activity, user_id, hr_zones=hr_zones, power_zones=power_zones)
         created_record = event_record_service.create(db, record)
         detail_for_record = detail.model_copy(update={"record_id": created_record.id})
         event_record_service.create_detail(db, detail_for_record)
