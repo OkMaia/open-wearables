@@ -30,14 +30,14 @@ async def get_users(search: str | None = None, limit: int = 10) -> dict:
 
     Returns:
         A dictionary containing:
-        - users: List of user objects with id, first_name, last_name, email (up to 'limit' users)
+        - users: List of user objects with id, first_name, last_name, email, external_user_id (up to 'limit' users)
         - total: Total number of users matching the query (may be greater than returned users)
 
     Example response:
         {
             "users": [
-                {"id": "uuid-1", "first_name": "John", "last_name": "Doe", "email": "john@example.com"},
-                {"id": "uuid-2", "first_name": "Jane", "last_name": "Smith", "email": "jane@example.com"}
+                {"id": "uuid-1", "first_name": "John", "last_name": "Doe", "email": "john@example.com", "external_user_id": "5511999999999"},
+                {"id": "uuid-2", "first_name": "Jane", "last_name": "Smith", "email": "jane@example.com", "external_user_id": null}
             ],
             "total": 2
         }
@@ -64,6 +64,7 @@ async def get_users(search: str | None = None, limit: int = 10) -> dict:
                     "first_name": user.get("first_name"),
                     "last_name": user.get("last_name"),
                     "email": user.get("email"),
+                    "external_user_id": user.get("external_user_id"),
                 }
                 for user in users
             ],

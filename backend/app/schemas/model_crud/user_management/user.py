@@ -58,7 +58,7 @@ class UserQueryParams(BaseModel):
     search: str | None = Field(
         None,
         description=(
-            "Search across first_name, last_name, and email (partial match). "
+            "Search across first_name, last_name, email, and external_user_id (partial match). "
             "A term that is a valid UUID also matches that user's id exactly"
         ),
     )

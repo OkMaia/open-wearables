@@ -43,6 +43,32 @@ async def test_get_users_returns_empty_envelope_on_auth_error(httpx_mock: HTTPXM
     assert "error" in result
 
 
+async def test_get_users_includes_external_user_id(httpx_mock: HTTPXMock) -> None:
+    """`get_users` includes external_user_id in each user record."""
+    httpx_mock.add_response(
+        method="GET",
+        url="https://api.test.com/api/v1/users?search=5518981906767&limit=10",
+        json={
+            "items": [
+                {
+                    "id": USER_ID,
+                    "first_name": "Test",
+                    "last_name": "User",
+                    "email": "test@example.com",
+                    "external_user_id": "5518981906767",
+                }
+            ],
+            "total": 1,
+        },
+    )
+
+    result = await get_users(search="5518981906767")
+    assert result["total"] == 1
+    assert len(result["users"]) == 1
+    assert result["users"][0]["id"] == USER_ID
+    assert result["users"][0]["external_user_id"] == "5518981906767"
+
+
 @pytest.mark.parametrize(
     "tool",
     [

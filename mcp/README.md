@@ -181,13 +181,13 @@ Claude: [calls get_sleep_summary(user_id="uuid-2", start_date="2026-01-01", end_
 Get all users accessible via the configured API key.
 
 **Parameters:**
-- `search` (optional): Filter users by name or email
+- `search` (optional): Filter users by name, email, or external user ID
 
 **Returns:**
 ```json
 {
   "users": [
-    {"id": "uuid-1", "first_name": "John", "last_name": "Doe", "email": "john@example.com"}
+    {"id": "uuid-1", "first_name": "John", "last_name": "Doe", "email": "john@example.com", "external_user_id": "5511999999999"}
   ],
   "total": 1
 }

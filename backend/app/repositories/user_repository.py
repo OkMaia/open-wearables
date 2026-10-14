@@ -141,6 +141,7 @@ class UserRepository(CrudRepository[User, UserCreateInternal, UserUpdateInternal
                 self.model.email.ilike(search_term, escape="\\"),
                 self.model.first_name.ilike(search_term, escape="\\"),
                 self.model.last_name.ilike(search_term, escape="\\"),
+                self.model.external_user_id.ilike(search_term, escape="\\"),
             ]
             # search by UUID
             with suppress(ValueError):

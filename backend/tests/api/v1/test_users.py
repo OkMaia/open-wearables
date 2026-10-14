@@ -730,6 +730,15 @@ class TestListUsersFilters:
         # Assert
         assert self._ids(response) == {str(users["garmin"].id)}
 
+    def test_search_by_external_user_id(
+        self, client: TestClient, api_v1_prefix: str, headers: dict
+    ) -> None:
+        """Test that searching by external_user_id (e.g. phone number) finds the user."""
+        user = UserFactory(email="ext_search@example.com", external_user_id="5518981906767")
+        response = client.get(f"{api_v1_prefix}/users?search=5518981906767", headers=headers)
+        assert response.status_code == 200
+        assert self._ids(response) == {str(user.id)}
+
     def test_sort_by_name_puts_unnamed_users_last(
         self, client: TestClient, api_v1_prefix: str, headers: dict, users: dict
     ) -> None:
