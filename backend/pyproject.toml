@@ -31,6 +31,7 @@ dependencies = [
     "fitdecode>=0.11.0",
     "google-auth>=2.58.1",
     "packaging>=24",
+    "fastmcp>=3.0.0,<4",
 ]
 
 [project.optional-dependencies]
