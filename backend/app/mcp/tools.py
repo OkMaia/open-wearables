@@ -15,7 +15,7 @@ from app.integrations.celery.tasks import sync_vendor_data
 from app.mcp.auth import McpAuthError, authenticate_context
 from app.repositories.provider_settings_repository import ProviderSettingsRepository
 from app.schemas.enums import Resolution, SeriesType, WorkoutType
-from app.schemas.model_crud.activities import EventRecordQueryParams, TimeSeriesQueryParams
+from app.schemas.model_crud.activities import EventRecordQueryParams, TimeSeriesQueryParams, WorkoutInclude
 from app.schemas.model_crud.user_management import UserQueryParams
 from app.services.event_record_service import event_record_service
 from app.services.providers.factory import ProviderFactory
@@ -307,7 +307,12 @@ def register_tools(mcp: FastMCP) -> None:
                 workout_type=type_enum,
                 limit=100,
             )
-            paginated = event_record_service.get_workouts(db, uid, event_params, include=[])
+            paginated = event_record_service.get_workouts(
+                db,
+                uid,
+                event_params,
+                include=[WorkoutInclude.ZONES, WorkoutInclude.SEGMENTS],
+            )
             records = [item.model_dump(mode="json") for item in paginated.data]
 
             return {

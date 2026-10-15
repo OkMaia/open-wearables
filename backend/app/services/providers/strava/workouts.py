@@ -250,6 +250,12 @@ class StravaWorkouts(BaseWorkoutsTemplate):
                     seg["avg_power"] = float(lap["average_watts"])
                 if lap.get("total_elevation_gain") is not None:
                     seg["total_elevation_gain"] = float(lap["total_elevation_gain"])
+
+                dist = seg.get("distance_meters")
+                sec = seg.get("moving_time_seconds") or seg.get("elapsed_seconds")
+                if dist and sec and dist > 0:
+                    seg["pace_sec_per_km"] = round(sec / (dist / 1000), 1)
+
                 segments.append(seg)
 
         if raw_workout.splits_metric:
@@ -272,6 +278,33 @@ class StravaWorkouts(BaseWorkoutsTemplate):
                     seg["pace_zone"] = int(split["pace_zone"])
                 if split.get("average_heartrate") is not None:
                     seg["avg_heart_rate"] = float(split["average_heartrate"])
+
+                dist = seg.get("distance_meters")
+                sec = seg.get("moving_time_seconds") or seg.get("elapsed_seconds")
+                if dist and sec and dist > 0:
+                    seg["pace_sec_per_km"] = round(sec / (dist / 1000), 1)
+
+                segments.append(seg)
+
+        if raw_workout.best_efforts:
+            for idx, effort in enumerate(raw_workout.best_efforts):
+                raw_dist = effort.get("distance")
+                dist = float(raw_dist) if raw_dist is not None else None
+                raw_sec = effort.get("elapsed_time") or effort.get("moving_time") or 0
+                sec = float(raw_sec)
+                seg = {
+                    "kind": "best_effort",
+                    "index": idx,
+                    "name": str(effort.get("name") or f"Effort {idx}"),
+                    "distance_meters": dist,
+                    "elapsed_seconds": sec,
+                }
+                if effort.get("start_date"):
+                    seg["start_time"] = str(effort["start_date"])
+                if effort.get("pr_rank") is not None:
+                    seg["pr_rank"] = int(effort["pr_rank"])
+                if dist and sec and dist > 0:
+                    seg["pace_sec_per_km"] = round(sec / (dist / 1000), 1)
                 segments.append(seg)
 
         return segments if segments else None

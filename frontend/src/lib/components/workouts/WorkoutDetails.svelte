@@ -10,6 +10,7 @@
 	import { zoneKinds, zoneRows } from '$lib/workouts/zones';
 	import DistributionBar from '$lib/components/charts/DistributionBar.svelte';
 	import SamplesChart from '$lib/components/charts/SamplesChart.svelte';
+	import WorkoutSegments from './WorkoutSegments.svelte';
 
 	let { workout, userId, ondelete }: { workout: Workout; userId: string; ondelete: () => void } =
 		$props();
@@ -70,13 +71,11 @@
 
 	<FieldGroups groups={detailGroups(workout)} />
 
-	<div class="flex items-center justify-between gap-3 border-t border-border pt-3">
-		<!-- Laps are stored but not drawn yet; saying so beats an empty space that
-		     reads as "this workout has none". -->
-		<span class="text-xs text-muted-foreground">
-			{workout.segments?.length ? `${workout.segments.length} laps recorded` : ''}
-		</span>
+	{#if workout.segments && workout.segments.length > 0}
+		<WorkoutSegments segments={workout.segments} />
+	{/if}
 
+	<div class="flex items-center justify-end gap-3 border-t border-border pt-3">
 		<DeleteAction label="Delete workout" onclick={ondelete} />
 	</div>
 </div>

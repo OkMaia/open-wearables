@@ -79,4 +79,6 @@ class ActivityJSON(BaseModel):
     laps: list[dict] | None = None
     splits_metric: list[dict] | None = None
     splits_standard: list[dict] | None = None
+    best_efforts: list[dict] | None = None
+    suffer_score: float | int | None = None
     description: str | None = None
