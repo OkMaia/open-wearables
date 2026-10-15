@@ -478,6 +478,8 @@ class StravaWorkouts(BaseWorkoutsTemplate):
         """Fetch + persist per-sample streams on workout arrival, flag-gated and failure-isolated."""
         if not settings.ingest_workout_samples:
             return 0
+        if activity.manual:
+            return 0
         try:
             samples = self._build_workout_samples(
                 db,
@@ -488,6 +490,16 @@ class StravaWorkouts(BaseWorkoutsTemplate):
                 activity.device_name or "",
             )
         except Exception as exc:
+            if getattr(exc, "status_code", None) == 404 or "404" in str(exc):
+                log_structured(
+                    self.logger,
+                    "debug",
+                    "Strava activity has no streams (404), skipping samples",
+                    provider="strava",
+                    action="strava_streams_not_found",
+                    activity_id=str(activity.id),
+                )
+                return 0
             log_and_capture_error(
                 exc,
                 self.logger,

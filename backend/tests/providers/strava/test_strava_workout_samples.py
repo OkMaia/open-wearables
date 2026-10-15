@@ -350,3 +350,60 @@ class TestIngestionWiring:
 
         mock_ts.bulk_create_samples.assert_not_called()
         assert count == 0
+
+    def test_manual_activity_skips_streams_fetch(
+        self,
+        strava_workouts: StravaWorkouts,
+        db: Session,
+    ) -> None:
+        """Manual activity skips streams fetch completely."""
+        user_id = uuid4()
+        record_mock = MagicMock()
+        manual_activity = StravaActivityJSON(
+            id=12345,
+            name="Manual Workout",
+            type="WeightTraining",
+            sport_type="WeightTraining",
+            start_date="2024-01-15T08:00:00Z",
+            elapsed_time=1800,
+            manual=True,
+        )
+        with (
+            patch(
+                "app.services.providers.strava.workouts.settings",
+                ingest_workout_samples=True,
+            ),
+            patch.object(strava_workouts, "_make_api_request") as mock_api,
+        ):
+            count = strava_workouts._ingest_workout_streams(db, manual_activity, user_id, record_mock)
+
+        mock_api.assert_not_called()
+        assert count == 0
+
+    def test_404_streams_skips_samples_silently(
+        self,
+        strava_workouts: StravaWorkouts,
+        db: Session,
+    ) -> None:
+        """404 on streams endpoint skips samples without capturing error to sentry."""
+        user_id = uuid4()
+        record_mock = MagicMock()
+        record_mock.start_datetime = _START_DT
+        record_mock.zone_offset = _ZONE_OFFSET
+
+        with (
+            patch(
+                "app.services.providers.strava.workouts.settings",
+                ingest_workout_samples=True,
+            ),
+            patch.object(
+                strava_workouts,
+                "_make_api_request",
+                side_effect=Exception("404 Client Error: Not Found"),
+            ),
+            patch("app.services.providers.strava.workouts.log_and_capture_error") as mock_capture,
+        ):
+            count = strava_workouts._ingest_workout_streams(db, _SAMPLE_ACTIVITY, user_id, record_mock)
+
+        mock_capture.assert_not_called()
+        assert count == 0

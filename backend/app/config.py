@@ -119,9 +119,9 @@ class Settings(BaseSettings):
     sleep_sync_interval_seconds: int = 3600  # Default: 1 hour (3600 seconds)
     # Re-fetch a trailing window on each *live* pull sync so late provider revisions
     # (e.g. Oura finalising a day's step count after we already moved past it) are
-    # picked up. Disabled by default. Set via a compact duration string: "2d", "20h",
+    # picked up. Default: 2 days. Set via a compact duration string: "2d", "20h",
     # "90m", "1d12h". Capped per provider by max_historical_days.
-    pull_sync_lookback: timedelta | None = None
+    pull_sync_lookback: timedelta | None = Field(default_factory=lambda: timedelta(days=2))
     # Grace-period flag: auto-dispatch historical sync after OAuth connect (default: true).
     # Pre-0.4.2 behaviour. Set to false once your integration calls /sync/historical explicitly.
     # Will default to false in a future release.
