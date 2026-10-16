@@ -128,6 +128,28 @@ class TestBuildWorkoutSamples:
             assert s.user_id == user_id
             assert isinstance(s, TimeSeriesSampleCreate)
 
+    def test_altitude_and_temp_streams_ingested(
+        self,
+        strava_workouts: StravaWorkouts,
+        db: Session,
+    ) -> None:
+        """altitude and temp streams are correctly mapped to elevation and air_temperature."""
+        user_id = uuid4()
+        streams: dict[str, Any] = {
+            "time": {"data": [0, 1]},
+            "altitude": {"data": [380.5, 382.0]},
+            "temp": {"data": [22, 23]},
+        }
+        with patch.object(strava_workouts, "_make_api_request", return_value=streams):
+            samples = strava_workouts._build_workout_samples(db, user_id, 98765, _START_DT, _ZONE_OFFSET, _DEVICE_MODEL)
+
+        elev_samples = [s for s in samples if s.series_type == SeriesType.elevation]
+        temp_samples = [s for s in samples if s.series_type == SeriesType.air_temperature]
+        assert len(elev_samples) == 2
+        assert elev_samples[0].value == Decimal("380.5")
+        assert len(temp_samples) == 2
+        assert temp_samples[0].value == Decimal("22")
+
     def test_no_time_stream_returns_empty(
         self,
         strava_workouts: StravaWorkouts,

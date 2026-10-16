@@ -7,7 +7,7 @@ from app.config import settings
 from app.constants.entry_source import get_unified_strava_entry_source
 from app.constants.workout_types import get_unified_strava_workout_type
 from app.database import DbSession
-from app.schemas.enums import SeriesType, WorkoutType
+from app.schemas.enums import SeriesType, WorkoutIntensity, WorkoutType
 from app.schemas.model_crud.activities import (
     EventRecordCreate,
     EventRecordDetailCreate,
@@ -211,14 +211,77 @@ class StravaWorkouts(BaseWorkoutsTemplate):
         if entry_source is not None:
             metrics["entry_source"] = entry_source
 
+        # Intensity: infer from perceived_exertion (RPE 1-10) or suffer_score
+        if raw_workout.perceived_exertion is not None:
+            rpe = float(raw_workout.perceived_exertion)
+            if rpe <= 3:
+                metrics["intensity"] = WorkoutIntensity.LOW
+            elif rpe <= 6:
+                metrics["intensity"] = WorkoutIntensity.MODERATE
+            else:
+                metrics["intensity"] = WorkoutIntensity.HIGH
+        elif raw_workout.suffer_score is not None:
+            score = float(raw_workout.suffer_score)
+            if score < 30:
+                metrics["intensity"] = WorkoutIntensity.LOW
+            elif score <= 75:
+                metrics["intensity"] = WorkoutIntensity.MODERATE
+            else:
+                metrics["intensity"] = WorkoutIntensity.HIGH
+
         if raw_workout.name:
             metrics["label"] = raw_workout.name
 
         return metrics
 
     def _build_segments(self, raw_workout: StravaActivityJSON) -> list[dict[str, Any]] | None:
-        """Extract laps and metric splits as workout segments."""
+        """Extract laps, metric splits, best efforts, overview metadata, and strength summary."""
         segments: list[dict[str, Any]] = []
+
+        overview: dict[str, Any] = {"kind": "overview"}
+        if raw_workout.suffer_score is not None:
+            overview["suffer_score"] = float(raw_workout.suffer_score)
+        if raw_workout.perceived_exertion is not None:
+            overview["perceived_exertion"] = float(raw_workout.perceived_exertion)
+        if raw_workout.average_temp is not None:
+            overview["average_temp"] = float(raw_workout.average_temp)
+        if raw_workout.gear and raw_workout.gear.name:
+            overview["gear_name"] = str(raw_workout.gear.name)
+            if raw_workout.gear.distance is not None:
+                overview["gear_distance_meters"] = float(raw_workout.gear.distance)
+        if raw_workout.map and isinstance(raw_workout.map, dict) and raw_workout.map.get("summary_polyline"):
+            overview["summary_polyline"] = str(raw_workout.map["summary_polyline"])
+        if raw_workout.description:
+            overview["description"] = str(raw_workout.description)
+        if len(overview) > 1:
+            segments.append(overview)
+
+        is_strength = raw_workout.sport_type in ("WeightTraining", "Crossfit") or raw_workout.type in (
+            "WeightTraining",
+            "Crossfit",
+        )
+        if raw_workout.laps and is_strength:
+            total_laps = len(raw_workout.laps)
+            sets_count = total_laps // 2 if total_laps > 1 else total_laps
+            work_seconds = sum(
+                float(lap.get("elapsed_time") or lap.get("moving_time") or 0)
+                for i, lap in enumerate(raw_workout.laps)
+                if i % 2 == 0
+            )
+            rest_seconds = sum(
+                float(lap.get("elapsed_time") or lap.get("moving_time") or 0)
+                for i, lap in enumerate(raw_workout.laps)
+                if i % 2 == 1
+            )
+            strength_summary: dict[str, Any] = {
+                "kind": "strength_summary",
+                "total_sets": sets_count,
+                "total_laps": total_laps,
+                "work_time_seconds": round(work_seconds, 1),
+                "rest_time_seconds": round(rest_seconds, 1),
+                "avg_rest_seconds": round(rest_seconds / max(1, sets_count), 1) if rest_seconds > 0 else None,
+            }
+            segments.append(strength_summary)
 
         if raw_workout.laps:
             for idx, lap in enumerate(raw_workout.laps):

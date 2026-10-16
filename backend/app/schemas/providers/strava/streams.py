@@ -32,3 +32,5 @@ class StravaStreamSet(BaseModel):
     velocity_smooth: StravaStream | None = None
     cadence: StravaStream | None = None
     watts: StravaStream | None = None
+    altitude: StravaStream | None = None
+    temp: StravaStream | None = None

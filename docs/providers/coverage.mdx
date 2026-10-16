@@ -588,8 +588,8 @@ Legend: ✅ supported, ❌ not available.
 
 | Metric | Unit | Apple | Fitbit | Garmin | Google Health | Health Connect | Oura | Polar | Samsung | Sensorbio | Strava | Suunto | Ultrahuman | Whoop | Withings |
 |------|------|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|
-| `air_temperature` | celsius | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| `elevation` | meters | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| `air_temperature` | celsius | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `elevation` | meters | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
 | `environmental_audio_exposure` | dB | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | `environmental_sound_reduction` | dB | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | `headphone_audio_exposure` | dB | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
@@ -687,7 +687,7 @@ Legend: ✅ supported, ❌ not available.
 | `heart_rate_max` | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ |
 | `heart_rate_min` | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ | ❌ | ✅ | ❌ | ❌ | ✅ |
 | `hr_zones` | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ |
-| `intensity` | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| `intensity` | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
 | `label` | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
 | `max_speed` | ✅ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ |
 | `max_watts` | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ |
@@ -866,9 +866,9 @@ Key differences and limitations to be aware of when working with each provider:
   - Activity/workout platform only — no sleep, HRV, or continuous health data
   - Real-time webhook notifications for new and updated activities
   - 50+ sport type mappings to unified taxonomy (SportType) plus legacy ActivityType support
-  - Workout metrics include: avg/max heart rate, distance, avg/max speed, avg/max watts, average cadence, elevation (gain/high/low), calories, moving time, device name
-  - Segments (laps and metric splits) and heart rate/power zones parsed from Strava API
-  - Per-sample workout streams (heart rate, speed, cadence, power) ingested as `/timeseries` data when `ingest_workout_samples` is enabled — scoped to workouts only, not continuous 24/7
+  - Workout metrics include: avg/max heart rate, distance, avg/max speed, avg/max watts, average cadence, elevation (gain/high/low), calories, moving time, intensity (perceived exertion/suffer score), device name
+  - Segments (laps, metric splits, best efforts, overview metadata with gear and RPE, strength training sets summary) and heart rate/power zones parsed from Strava API
+  - Per-sample workout streams (heart rate, speed, cadence, power, elevation, air temperature) ingested as `/timeseries` data when `ingest_workout_samples` is enabled — scoped to workouts only, not continuous 24/7
   - Calories fall back to kilojoules when calorie data is not available from the API
   - Only one webhook subscription allowed per application
   - Webhook must respond with HTTP 200 within 2 seconds; retries up to 3 times on failure

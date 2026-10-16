@@ -6,8 +6,9 @@ from uuid import uuid4
 
 import pytest
 
-from app.schemas.enums import EntrySource
+from app.schemas.enums import EntrySource, WorkoutIntensity
 from app.schemas.providers.strava import ActivityJSON as StravaActivityJSON
+from app.schemas.providers.strava import StravaGearJSON
 from app.services.providers.strava.oauth import StravaOAuth
 from app.services.providers.strava.workouts import StravaWorkouts
 
@@ -247,3 +248,81 @@ class TestStravaWorkoutsNormalization:
             assert created_detail.average_cadence == Decimal("165.0")
             assert created_detail.segments is not None
             assert len(created_detail.segments) == 1
+
+    def test_normalize_workout_intensity_from_perceived_exertion(self, workouts: StravaWorkouts) -> None:
+        activity_low = StravaActivityJSON(
+            id=101,
+            name="Easy Walk",
+            type="Walk",
+            sport_type="Walk",
+            start_date="2024-01-15T08:00:00Z",
+            elapsed_time=1200,
+            perceived_exertion=2,
+        )
+        _, detail_low = workouts._normalize_workout(activity_low, uuid4())
+        assert detail_low.intensity == WorkoutIntensity.LOW
+
+        activity_hard = StravaActivityJSON(
+            id=102,
+            name="Hard Run",
+            type="Run",
+            sport_type="Run",
+            start_date="2024-01-15T08:00:00Z",
+            elapsed_time=1200,
+            perceived_exertion=8,
+        )
+        _, detail_hard = workouts._normalize_workout(activity_hard, uuid4())
+        assert detail_hard.intensity == WorkoutIntensity.HIGH
+
+    def test_normalize_workout_overview_and_gear(self, workouts: StravaWorkouts) -> None:
+        activity = StravaActivityJSON(
+            id=201,
+            name="Morning Run",
+            type="Run",
+            sport_type="Run",
+            start_date="2024-01-15T08:00:00Z",
+            elapsed_time=3600,
+            suffer_score=85,
+            average_temp=22,
+            perceived_exertion=7,
+            description="Good pace on trails",
+            gear=StravaGearJSON(name="Nike Pegasus 40", distance=150000),
+            map={"summary_polyline": "abcdef12345"},
+        )
+        _, detail = workouts._normalize_workout(activity, uuid4())
+        assert detail.intensity == WorkoutIntensity.HIGH
+        assert detail.segments is not None
+        overview = next((s for s in detail.segments if s.get("kind") == "overview"), None)
+        assert overview is not None
+        assert overview["suffer_score"] == 85.0
+        assert overview["perceived_exertion"] == 7.0
+        assert overview["average_temp"] == 22.0
+        assert overview["gear_name"] == "Nike Pegasus 40"
+        assert overview["gear_distance_meters"] == 150000.0
+        assert overview["summary_polyline"] == "abcdef12345"
+        assert overview["description"] == "Good pace on trails"
+
+    def test_normalize_workout_strength_summary(self, workouts: StravaWorkouts) -> None:
+        activity = StravaActivityJSON(
+            id=301,
+            name="Musculação matinal",
+            type="WeightTraining",
+            sport_type="WeightTraining",
+            start_date="2024-01-15T08:00:00Z",
+            elapsed_time=2400,
+            laps=[
+                {"elapsed_time": 40, "moving_time": 40},
+                {"elapsed_time": 60, "moving_time": 60},
+                {"elapsed_time": 45, "moving_time": 45},
+                {"elapsed_time": 75, "moving_time": 75},
+            ],
+        )
+        _, detail = workouts._normalize_workout(activity, uuid4())
+        assert detail.segments is not None
+        strength_summary = next((s for s in detail.segments if s.get("kind") == "strength_summary"), None)
+        assert strength_summary is not None
+        assert strength_summary["total_sets"] == 2
+        assert strength_summary["total_laps"] == 4
+        assert strength_summary["work_time_seconds"] == 85.0
+        assert strength_summary["rest_time_seconds"] == 135.0
+        assert strength_summary["avg_rest_seconds"] == 67.5

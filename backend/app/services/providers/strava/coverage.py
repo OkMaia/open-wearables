@@ -8,6 +8,8 @@ STREAM_KEY_SERIES_TYPE: dict[str, SeriesType] = {
     "velocity_smooth": SeriesType.speed,
     "cadence": SeriesType.cadence,
     "watts": SeriesType.power,
+    "altitude": SeriesType.elevation,
+    "temp": SeriesType.air_temperature,
 }
 
 # Value for the Strava streams `keys` query param: time axis first, then every metric.
@@ -33,6 +35,7 @@ WORKOUT_FIELDS: frozenset[str] = frozenset(
         "heart_rate_avg",
         "heart_rate_max",
         "hr_zones",
+        "intensity",
         "label",
         "max_speed",
         "max_watts",

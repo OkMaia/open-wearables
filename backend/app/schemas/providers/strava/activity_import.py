@@ -1,3 +1,5 @@
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict
 
 
@@ -6,11 +8,11 @@ class StravaGearJSON(BaseModel):
 
     model_config = ConfigDict(populate_by_name=True)
 
-    id: str
-    primary: bool
-    name: str
-    resource_state: int
-    distance: int
+    id: str | None = None
+    primary: bool | None = None
+    name: str | None = None
+    resource_state: int | None = None
+    distance: float | int | None = None
 
 
 class ActivityJSON(BaseModel):
@@ -74,6 +76,13 @@ class ActivityJSON(BaseModel):
     start_date_local: str | None = None  # ISO 8601 local
     timezone: str | None = None
     utc_offset: float | None = None
+
+    # Environmental & Effort metrics
+    average_temp: float | int | None = None
+    perceived_exertion: float | int | None = None
+    prefer_perceived_exertion: bool | None = None
+    map: dict[str, Any] | None = None
+    workout_type: int | None = None
 
     # Laps and splits (DetailedActivity)
     laps: list[dict] | None = None
